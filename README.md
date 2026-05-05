@@ -74,6 +74,7 @@ To allow pulling from another host, make sure the package visibility/access in G
 - Job metadata is saved to `JOB_STORE_PATH`.
 - Completed files are stored in `ZIP_OUTPUT_DIR`.
 - If retention is enabled, old zip files are deleted on an interval.
+- On shutdown signals (`SIGINT`/`SIGTERM`), running/queued jobs are force-stopped, removed from job history, and partial zip files are deleted before process exit.
 
 ## API
 

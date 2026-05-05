@@ -17,6 +17,8 @@ const ALLOW_SOURCE_DELETE = String(process.env.ALLOW_SOURCE_DELETE || "false").t
 
 const jobs = new Map();
 const activeJobs = new Map();
+let httpServer = null;
+let shuttingDown = false;
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
@@ -223,6 +225,57 @@ async function cancelJob(job) {
   await persistJobs();
 }
 
+async function forceStopAndDeleteJob(job) {
+  const active = activeJobs.get(job.id);
+  if (active) {
+    try {
+      active.archive.abort();
+    } catch (_err) {}
+
+    try {
+      active.output.destroy();
+    } catch (_err) {}
+
+    activeJobs.delete(job.id);
+
+    if (active.outputPath) {
+      try {
+        await fsp.unlink(active.outputPath);
+      } catch (err) {
+        if (err.code !== "ENOENT") {
+          console.error(`Failed to delete partial zip for ${job.id}:`, err.message);
+        }
+      }
+    }
+  }
+
+  jobs.delete(job.id);
+}
+
+async function shutdownGracefully(signal) {
+  if (shuttingDown) {
+    return;
+  }
+  shuttingDown = true;
+  console.log(`Received ${signal}. Stopping active zip jobs before shutdown...`);
+
+  const targets = [...jobs.values()].filter((job) => job.status === "running" || job.status === "queued");
+  for (const job of targets) {
+    await forceStopAndDeleteJob(job);
+  }
+  await persistJobs();
+
+  if (!httpServer) {
+    process.exit(0);
+    return;
+  }
+
+  await new Promise((resolve) => {
+    httpServer.close(() => resolve());
+  });
+  process.exit(0);
+}
+
 async function applyRetention() {
   if (RETENTION_DAYS <= 0) {
     return;
@@ -346,13 +399,27 @@ async function start() {
     });
   }, RETENTION_SCAN_MS);
 
-  app.listen(PORT, () => {
+  httpServer = app.listen(PORT, () => {
     console.log(`Zipper GUI listening on http://localhost:${PORT}`);
     console.log(`Source root: ${ROOT_DIR}`);
     console.log(`Zip output: ${OUTPUT_DIR}`);
     console.log(`Allow source deletion: ${ALLOW_SOURCE_DELETE}`);
   });
 }
+
+process.on("SIGINT", () => {
+  shutdownGracefully("SIGINT").catch((err) => {
+    console.error("Shutdown failed:", err);
+    process.exit(1);
+  });
+});
+
+process.on("SIGTERM", () => {
+  shutdownGracefully("SIGTERM").catch((err) => {
+    console.error("Shutdown failed:", err);
+    process.exit(1);
+  });
+});
 
 start().catch((err) => {
   console.error("Failed to start service:", err);

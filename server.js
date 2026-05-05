@@ -13,6 +13,7 @@ const MAX_DEPTH = Number(process.env.MAX_BROWSE_DEPTH || 5);
 const JOB_STORE_PATH = process.env.JOB_STORE_PATH || path.join(OUTPUT_DIR, "jobs.json");
 const RETENTION_DAYS = Number(process.env.ZIP_RETENTION_DAYS || 7);
 const RETENTION_SCAN_MS = Number(process.env.RETENTION_SCAN_MS || 60_000);
+const ALLOW_SOURCE_DELETE = String(process.env.ALLOW_SOURCE_DELETE || "false").toLowerCase() === "true";
 
 const jobs = new Map();
 const activeJobs = new Map();
@@ -59,7 +60,7 @@ async function loadPersistedJobs() {
   }
 }
 
-function makeJob(sourceRelativePath) {
+function makeJob(sourceRelativePath, deleteSourceAfterZip) {
   const id = crypto.randomUUID();
   const createdAt = new Date().toISOString();
   return {
@@ -71,8 +72,12 @@ function makeJob(sourceRelativePath) {
     finishedAt: null,
     outputFile: null,
     bytesWritten: 0,
+    processedEntries: 0,
+    totalEntries: 0,
+    progressPercent: 0,
     error: null,
-    cancelledAt: null
+    cancelledAt: null,
+    deleteSourceAfterZip: Boolean(deleteSourceAfterZip)
   };
 }
 
@@ -120,6 +125,9 @@ async function runZipJob(job) {
   job.startedAt = new Date().toISOString();
   job.outputFile = outputFile;
   job.bytesWritten = 0;
+  job.processedEntries = 0;
+  job.totalEntries = 0;
+  job.progressPercent = 0;
 
   await new Promise((resolve, reject) => {
     const output = fs.createWriteStream(outputPath);
@@ -135,6 +143,7 @@ async function runZipJob(job) {
       job.status = "completed";
       job.finishedAt = new Date().toISOString();
       job.bytesWritten = archive.pointer();
+      job.progressPercent = 100;
       persistJobs().catch(() => {});
       resolve();
     });
@@ -156,14 +165,23 @@ async function runZipJob(job) {
       reject(err);
     });
 
-    archive.on("progress", () => {
+    archive.on("progress", (progress) => {
       job.bytesWritten = archive.pointer();
+      const processed = progress?.entries?.processed ?? 0;
+      const total = progress?.entries?.total ?? 0;
+      job.processedEntries = processed;
+      job.totalEntries = total;
+      job.progressPercent = total > 0 ? Math.min(100, Math.round((processed / total) * 100)) : 0;
     });
 
     archive.pipe(output);
     archive.directory(sourceAbs, false);
     archive.finalize().catch(reject);
   });
+
+  if (job.status === "completed" && job.deleteSourceAfterZip) {
+    await fsp.rm(sourceAbs, { recursive: true, force: false });
+  }
 }
 
 async function cancelJob(job) {
@@ -243,6 +261,7 @@ app.get("/api/folders", async (_req, res) => {
 
 app.post("/api/jobs", async (req, res) => {
   const sourceRelativePath = (req.body?.sourceRelativePath || "").trim();
+  const deleteSourceAfterZip = Boolean(req.body?.deleteSourceAfterZip) && ALLOW_SOURCE_DELETE;
   if (!sourceRelativePath) {
     return res.status(400).json({ error: "sourceRelativePath is required." });
   }
@@ -263,7 +282,7 @@ app.post("/api/jobs", async (req, res) => {
     return res.status(404).json({ error: "Directory does not exist." });
   }
 
-  const job = makeJob(sourceRelativePath);
+  const job = makeJob(sourceRelativePath, deleteSourceAfterZip);
   jobs.set(job.id, job);
   await persistJobs();
 
@@ -331,6 +350,7 @@ async function start() {
     console.log(`Zipper GUI listening on http://localhost:${PORT}`);
     console.log(`Source root: ${ROOT_DIR}`);
     console.log(`Zip output: ${OUTPUT_DIR}`);
+    console.log(`Allow source deletion: ${ALLOW_SOURCE_DELETE}`);
   });
 }
 

@@ -10,6 +10,7 @@ Designed to run in Docker so you can mount a folder, pick subfolders from the UI
 - Background zip jobs (non-blocking)
 - Job statuses (`queued`, `running`, `completed`, `failed`, `cancelled`)
 - Cancel running/queued jobs from the UI
+- Optional delete-source-after-zip setting (disabled by default)
 - Persisted job history (`jobs.json`)
 - Optional zip retention cleanup (disabled in compose by default)
 - Download completed archives directly from the jobs table
@@ -92,9 +93,12 @@ Request body:
 
 ```json
 {
-  "sourceRelativePath": "my-folder/subfolder"
+  "sourceRelativePath": "my-folder/subfolder",
+  "deleteSourceAfterZip": false
 }
 ```
+
+`deleteSourceAfterZip` is honored only when `ALLOW_SOURCE_DELETE=true`.
 
 ### `GET /api/jobs`
 
@@ -123,6 +127,7 @@ Environment variables:
 - `JOB_STORE_PATH` (default: `/output/jobs.json`)
 - `ZIP_RETENTION_DAYS` (default: `7`)
 - `RETENTION_SCAN_MS` (default: `60000`)
+- `ALLOW_SOURCE_DELETE` (default: `false`)
 
 Compose-oriented variables (`.env`):
 

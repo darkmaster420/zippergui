@@ -57,6 +57,14 @@ label {
   color: #cbd5e1;
 }
 
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin-top: 0.65rem;
+  color: #fca5a5;
+}
+
 button {
   margin-top: 0.5rem;
   padding: 0.5rem 0.75rem;
@@ -95,29 +103,64 @@ button:hover {
   background: #991b1b;
 }
 
-.jobs-table {
-  width: 100%;
-  border-collapse: collapse;
+.jobs-list {
   margin-top: 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.job-item {
+  border: 1px solid #334155;
+  border-radius: 10px;
+  background: #0b1220;
   overflow: hidden;
-  border-radius: 8px;
 }
 
-th,
-td {
-  text-align: left;
-  border-bottom: 1px solid #2c3749;
-  padding: 0.55rem;
+.job-summary {
+  cursor: pointer;
+  list-style: none;
+  padding: 0.65rem 0.7rem;
 }
 
-th {
-  color: #cbd5e1;
+.job-summary::-webkit-details-marker {
+  display: none;
+}
+
+.job-summary-top {
+  display: grid;
+  grid-template-columns: 90px 1fr auto auto;
+  gap: 0.55rem;
+  align-items: center;
+}
+
+.job-progress-text {
+  color: #93c5fd;
   font-weight: 600;
-  background: #0f172a;
 }
 
-tbody tr:nth-child(even) {
-  background: rgba(15, 23, 42, 0.45);
+.progress-wrap {
+  margin-top: 0.55rem;
+  height: 10px;
+  background: #1f2937;
+  border-radius: 999px;
+  overflow: hidden;
+  border: 1px solid #334155;
+}
+
+.progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #2563eb, #38bdf8);
+  transition: width 0.25s ease;
+}
+
+.job-details {
+  padding: 0.65rem 0.7rem 0.8rem;
+  border-top: 1px solid #233043;
+}
+
+.job-details p {
+  margin: 0.35rem 0;
 }
 
 .mono {
@@ -223,5 +266,9 @@ tbody tr:nth-child(even) {
   .actions-row {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .job-summary-top {
+    grid-template-columns: 1fr;
   }
 }

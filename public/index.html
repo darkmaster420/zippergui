@@ -21,6 +21,10 @@
         <label>Folder under mounted data root</label>
         <div id="folderTree" class="folder-tree"></div>
         <p class="selection">Selected: <span id="selectedFolder" class="selected-chip">(none)</span></p>
+        <label class="checkbox-row">
+          <input id="deleteSourceAfterZip" type="checkbox" />
+          Delete source folder after successful zip
+        </label>
         <div class="actions-row">
           <button id="startZip" class="btn-primary">Start zip job</button>
           <p id="statusText" class="status-text"></p>
@@ -32,19 +36,7 @@
           <h2>Jobs</h2>
           <button id="refreshJobs" class="btn-secondary">Refresh jobs</button>
         </div>
-        <table class="jobs-table">
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Folder</th>
-              <th>Status</th>
-              <th>Size</th>
-              <th>Output</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody id="jobsTableBody"></tbody>
-        </table>
+        <div id="jobsList" class="jobs-list"></div>
       </section>
     </main>
     <script src="/app.js"></script>

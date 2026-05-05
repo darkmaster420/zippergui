@@ -3,14 +3,21 @@ const refreshFoldersBtn = document.getElementById("refreshFolders");
 const startZipBtn = document.getElementById("startZip");
 const statusText = document.getElementById("statusText");
 const refreshJobsBtn = document.getElementById("refreshJobs");
-const jobsTableBody = document.getElementById("jobsTableBody");
+const jobsList = document.getElementById("jobsList");
 const selectedFolderEl = document.getElementById("selectedFolder");
+const deleteSourceAfterZipEl = document.getElementById("deleteSourceAfterZip");
 
 let selectedFolder = "";
 
 function formatStatus(status) {
   const cls = `status-pill status-${status}`;
   return `<span class="${cls}">${status}</span>`;
+}
+
+function getProgressPercent(job) {
+  if (job.status === "completed") return 100;
+  if (job.status === "failed" || job.status === "cancelled") return Math.max(0, job.progressPercent || 0);
+  return Math.max(0, Math.min(100, job.progressPercent || 0));
 }
 
 function createNode(node) {
@@ -96,9 +103,18 @@ async function loadJobs() {
     return;
   }
 
-  jobsTableBody.innerHTML = "";
+  jobsList.innerHTML = "";
+  if (!Array.isArray(data.jobs) || data.jobs.length === 0) {
+    jobsList.innerHTML = `<p class="status-text">No jobs yet.</p>`;
+    return;
+  }
+
   for (const job of data.jobs) {
-    const tr = document.createElement("tr");
+    const item = document.createElement("details");
+    item.className = "job-item";
+    const progress = getProgressPercent(job);
+    const progressLabel =
+      job.totalEntries > 0 ? `${job.processedEntries}/${job.totalEntries} entries` : "Preparing...";
     const download =
       job.status === "completed" && job.outputFile
         ? `<a href="/api/download/${encodeURIComponent(job.outputFile)}" target="_blank" rel="noreferrer">${job.outputFile}</a>`
@@ -107,15 +123,27 @@ async function loadJobs() {
       job.status === "running" || job.status === "queued"
         ? `<button data-cancel-id="${job.id}" class="cancel-btn btn-danger">Cancel</button>`
         : "-";
-    tr.innerHTML = `
-      <td class="mono">${job.id.slice(0, 8)}</td>
-      <td>${job.sourceRelativePath}</td>
-      <td>${formatStatus(job.status)}</td>
-      <td>${formatBytes(job.bytesWritten)}</td>
-      <td>${download}</td>
-      <td>${action}</td>
+    item.innerHTML = `
+      <summary class="job-summary">
+        <div class="job-summary-top">
+          <span class="mono">${job.id.slice(0, 8)}</span>
+          <span>${job.sourceRelativePath}</span>
+          ${formatStatus(job.status)}
+          <span class="job-progress-text">${progress}%</span>
+        </div>
+        <div class="progress-wrap">
+          <div class="progress-bar" style="width: ${progress}%"></div>
+        </div>
+      </summary>
+      <div class="job-details">
+        <p><strong>Entries:</strong> ${progressLabel}</p>
+        <p><strong>Delete Source:</strong> ${job.deleteSourceAfterZip ? "Yes" : "No"}</p>
+        <p><strong>Size:</strong> ${formatBytes(job.bytesWritten)}</p>
+        <p><strong>Output:</strong> ${download}</p>
+        <p><strong>Action:</strong> ${action}</p>
+      </div>
     `;
-    jobsTableBody.appendChild(tr);
+    jobsList.appendChild(item);
   }
 
   document.querySelectorAll(".cancel-btn").forEach((btn) => {
@@ -139,6 +167,7 @@ async function loadJobs() {
 
 async function startJob() {
   const sourceRelativePath = selectedFolder;
+  const deleteSourceAfterZip = deleteSourceAfterZipEl.checked;
   if (!sourceRelativePath) {
     statusText.textContent = "Select a folder first.";
     return;
@@ -148,7 +177,7 @@ async function startJob() {
   const res = await fetch("/api/jobs", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ sourceRelativePath })
+    body: JSON.stringify({ sourceRelativePath, deleteSourceAfterZip })
   });
   const data = await res.json();
   if (!res.ok) {

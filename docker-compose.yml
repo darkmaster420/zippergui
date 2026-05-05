@@ -12,6 +12,7 @@ services:
       - JOB_STORE_PATH=/output/jobs.json
       - ZIP_RETENTION_DAYS=${ZIP_RETENTION_DAYS:-0}
       - RETENTION_SCAN_MS=${RETENTION_SCAN_MS:-60000}
+      - ALLOW_SOURCE_DELETE=${ALLOW_SOURCE_DELETE:-false}
     volumes:
       - ${DATA_PATH:-./data}:/data
       - ${OUTPUT_PATH:-./output}:/output

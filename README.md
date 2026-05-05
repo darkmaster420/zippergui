@@ -16,15 +16,25 @@ Designed to run in Docker so you can mount a folder, pick subfolders from the UI
 
 ## Quick Start (Docker Compose)
 
-1. Put folders you want to zip inside `./data`.
-2. Start the app:
+1. Copy env template and set your image name:
 
 ```bash
-docker compose up --build
+cp .env.example .env
 ```
 
-3. Open [http://localhost:3000](http://localhost:3000)
-4. Generated zip files are written to `./output`
+2. In `.env`, set:
+
+- `IMAGE_NAME=ghcr.io/<your-org-or-user>/zippergui:latest`
+
+3. Put folders you want to zip inside `./data` (or change `DATA_PATH`).
+4. Start the app:
+
+```bash
+docker compose up -d
+```
+
+5. Open [http://localhost:3000](http://localhost:3000)
+6. Generated zip files are written to `./output` (or your `OUTPUT_PATH`)
 
 ## Local Development (No Docker)
 
@@ -34,6 +44,27 @@ npm start
 ```
 
 Then open `http://localhost:3000`.
+
+## Publish Image with GitHub Actions
+
+This repo includes `.github/workflows/docker-publish.yml` that builds and publishes to GHCR:
+
+- On push to `main`
+- On tags like `v1.2.3`
+- On manual run (`workflow_dispatch`)
+
+Published image name:
+
+- `ghcr.io/<repo-owner>/zippergui:<tag>`
+
+Default tags include:
+
+- `latest` (default branch)
+- branch name
+- git tag (for release tags)
+- short SHA
+
+To allow pulling from another host, make sure the package visibility/access in GitHub is configured appropriately (public image, or authenticated pulls for private packages).
 
 ## How It Works
 
@@ -93,11 +124,18 @@ Environment variables:
 - `ZIP_RETENTION_DAYS` (default: `7`)
 - `RETENTION_SCAN_MS` (default: `60000`)
 
+Compose-oriented variables (`.env`):
+
+- `IMAGE_NAME` (image to deploy, e.g. `ghcr.io/acme/zippergui:latest`)
+- `HOST_PORT` (host port mapped to container `3000`)
+- `DATA_PATH` (host path mounted to `/data`)
+- `OUTPUT_PATH` (host path mounted to `/output`)
+
 ### Retention Behavior
 
 - `ZIP_RETENTION_DAYS=0` disables retention cleanup
 - `ZIP_RETENTION_DAYS>0` deletes `.zip` files older than N days
-- In this repo's `docker-compose.yml`, retention is currently set to `0` (disabled)
+- In this repo's `docker-compose.yml`, retention is currently `0` by default (disabled)
 
 ## Volumes in Compose
 

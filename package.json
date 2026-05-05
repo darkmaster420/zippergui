@@ -1,0 +1,13 @@
+{
+  "name": "zippergui",
+  "version": "1.0.0",
+  "description": "Dockerized web UI for background folder zipping",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "archiver": "^7.0.1",
+    "express": "^4.21.2"
+  }
+}

@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Zipper GUI</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="container">
+      <header class="hero">
+        <h1>Zipper GUI</h1>
+        <p class="subtitle">Select folders, queue background zips, and download artifacts.</p>
+      </header>
+
+      <section class="card">
+        <div class="card-header">
+          <h2>Folder Selection</h2>
+          <button id="refreshFolders" class="btn-secondary">Refresh folders</button>
+        </div>
+        <label>Folder under mounted data root</label>
+        <div id="folderTree" class="folder-tree"></div>
+        <p class="selection">Selected: <span id="selectedFolder" class="selected-chip">(none)</span></p>
+        <div class="actions-row">
+          <button id="startZip" class="btn-primary">Start zip job</button>
+          <p id="statusText" class="status-text"></p>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="card-header">
+          <h2>Jobs</h2>
+          <button id="refreshJobs" class="btn-secondary">Refresh jobs</button>
+        </div>
+        <table class="jobs-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Folder</th>
+              <th>Status</th>
+              <th>Size</th>
+              <th>Output</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="jobsTableBody"></tbody>
+        </table>
+      </section>
+    </main>
+    <script src="/app.js"></script>
+  </body>
+</html>

@@ -190,38 +190,7 @@ async function cancelJob(job) {
   if (job.status !== "running" && job.status !== "queued") {
     throw new Error("Only queued or running jobs can be cancelled.");
   }
-
-  job.status = "cancelled";
-  job.cancelledAt = new Date().toISOString();
-  job.finishedAt = job.cancelledAt;
-  job.error = null;
-
-  const active = activeJobs.get(job.id);
-  if (!active) {
-    await persistJobs();
-    return;
-  }
-
-  try {
-    active.archive.abort();
-  } catch (_err) {}
-
-  try {
-    active.output.destroy();
-  } catch (_err) {}
-
-  activeJobs.delete(job.id);
-
-  if (active.outputPath) {
-    try {
-      await fsp.unlink(active.outputPath);
-    } catch (err) {
-      if (err.code !== "ENOENT") {
-        console.error(`Failed to delete partial zip for ${job.id}:`, err.message);
-      }
-    }
-  }
-
+  await forceStopAndDeleteJob(job);
   await persistJobs();
 }
 
@@ -373,7 +342,7 @@ app.delete("/api/jobs/:id", async (req, res) => {
 
   try {
     await cancelJob(job);
-    return res.json({ job });
+    return res.json({ deletedJobId: req.params.id });
   } catch (err) {
     return res.status(400).json({ error: err.message });
   }

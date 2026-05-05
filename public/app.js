@@ -158,7 +158,7 @@ async function loadJobs() {
       if (!res.ok) {
         statusText.textContent = `Cancel failed: ${data.error || "Unknown error"}`;
       } else {
-        statusText.textContent = `Job ${id.slice(0, 8)} cancelled.`;
+        statusText.textContent = `Job ${id.slice(0, 8)} cancelled and removed.`;
         await loadJobs();
       }
     });

@@ -111,7 +111,7 @@ Returns one job by ID.
 
 ### `DELETE /api/jobs/:id`
 
-Cancels a `queued` or `running` job.
+Cancels a `queued` or `running` job, deletes any partial zip output, and removes the job from history.
 
 ### `GET /api/download/:file`
 

@@ -23,6 +23,14 @@ let shuttingDown = false;
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 
+const ARCHIVE_EXTS = new Set([".zip", ".rar", ".7z", ".tar", ".gz", ".bz2", ".xz", ".tgz", ".tbz2", ".txz"]);
+
+function isArchiveFile(name) {
+  const lower = name.toLowerCase();
+  if (lower.endsWith(".tar.gz") || lower.endsWith(".tar.bz2") || lower.endsWith(".tar.xz")) return true;
+  return ARCHIVE_EXTS.has(path.extname(lower));
+}
+
 function safeResolve(baseDir, userPath = "") {
   const candidate = path.resolve(baseDir, userPath);
   const rel = path.relative(baseDir, candidate);
@@ -182,7 +190,11 @@ async function runZipJob(job) {
   });
 
   if (job.status === "completed" && job.deleteSourceAfterZip) {
-    await fsp.rm(sourceAbs, { recursive: true, force: false });
+    try {
+      await fsp.rm(sourceAbs, { recursive: true, force: true });
+    } catch (err) {
+      console.error(`[delete-source] failed to remove ${sourceAbs}: ${err.message}`);
+    }
   }
 }
 
@@ -355,6 +367,69 @@ app.get("/api/download/:file", (req, res) => {
   }
   const filePath = path.join(OUTPUT_DIR, fileName);
   return res.download(filePath);
+});
+
+app.post("/api/flatten", async (req, res) => {
+  const sourceRelativePath = (req.body?.sourceRelativePath || "").trim();
+  if (!sourceRelativePath) {
+    return res.status(400).json({ error: "sourceRelativePath is required." });
+  }
+
+  let sourceAbs;
+  try {
+    sourceAbs = safeResolve(ROOT_DIR, sourceRelativePath);
+  } catch (err) {
+    return res.status(400).json({ error: err.message });
+  }
+
+  try {
+    const stats = await fsp.stat(sourceAbs);
+    if (!stats.isDirectory()) {
+      return res.status(400).json({ error: "Path is not a directory." });
+    }
+  } catch {
+    return res.status(404).json({ error: "Directory does not exist." });
+  }
+
+  const entries = await fsp.readdir(sourceAbs, { withFileTypes: true });
+  if (entries.length !== 1 || !entries[0].isFile()) {
+    return res.status(400).json({ error: "Folder must contain exactly one file (no subdirectories)." });
+  }
+
+  const fileName = entries[0].name;
+  if (!isArchiveFile(fileName)) {
+    return res.status(400).json({ error: `"${fileName}" is not a recognised archive format.` });
+  }
+
+  const fileSrc = path.join(sourceAbs, fileName);
+  const parentAbs = path.dirname(sourceAbs);
+  const fileDest = path.join(parentAbs, fileName);
+
+  try {
+    await fsp.stat(fileDest);
+    return res.status(409).json({ error: `"${fileName}" already exists in the parent directory.` });
+  } catch (err) {
+    if (err.code !== "ENOENT") {
+      return res.status(500).json({ error: err.message });
+    }
+  }
+
+  try {
+    await fsp.rename(fileSrc, fileDest);
+  } catch (err) {
+    return res.status(500).json({ error: `Failed to move file: ${err.message}` });
+  }
+
+  try {
+    const remaining = await fsp.readdir(sourceAbs);
+    if (remaining.length === 0) {
+      await fsp.rmdir(sourceAbs);
+    }
+  } catch (err) {
+    console.error(`[flatten] failed to remove folder ${sourceAbs}: ${err.message}`);
+  }
+
+  return res.json({ movedFile: fileName, fromFolder: sourceRelativePath });
 });
 
 async function start() {

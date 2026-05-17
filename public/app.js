@@ -1,6 +1,7 @@
 const folderTree = document.getElementById("folderTree");
 const refreshFoldersBtn = document.getElementById("refreshFolders");
 const startZipBtn = document.getElementById("startZip");
+const flattenFolderBtn = document.getElementById("flattenFolder");
 const statusText = document.getElementById("statusText");
 const refreshJobsBtn = document.getElementById("refreshJobs");
 const jobsList = document.getElementById("jobsList");
@@ -188,6 +189,31 @@ async function startJob() {
   await loadJobs();
 }
 
+async function flattenFolder() {
+  const sourceRelativePath = selectedFolder;
+  if (!sourceRelativePath) {
+    statusText.textContent = "Select a folder first.";
+    return;
+  }
+
+  statusText.textContent = `Flattening "${sourceRelativePath}"...`;
+  const res = await fetch("/api/flatten", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ sourceRelativePath })
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    statusText.textContent = `Flatten failed: ${data.error || "Unknown error"}`;
+    return;
+  }
+  statusText.textContent = `Moved "${data.movedFile}" out of "${data.fromFolder}" and deleted the empty folder.`;
+  selectedFolder = "";
+  selectedFolderEl.textContent = "(none)";
+  document.querySelectorAll(".folder-btn.active").forEach((el) => el.classList.remove("active"));
+  await loadFolders();
+}
+
 refreshFoldersBtn.addEventListener("click", () => {
   loadFolders().catch((err) => {
     statusText.textContent = `Folder refresh failed: ${err.message}`;
@@ -197,6 +223,12 @@ refreshFoldersBtn.addEventListener("click", () => {
 startZipBtn.addEventListener("click", () => {
   startJob().catch((err) => {
     statusText.textContent = `Could not start zip: ${err.message}`;
+  });
+});
+
+flattenFolderBtn.addEventListener("click", () => {
+  flattenFolder().catch((err) => {
+    statusText.textContent = `Flatten failed: ${err.message}`;
   });
 });
 
